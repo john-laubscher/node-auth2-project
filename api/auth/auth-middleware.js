@@ -3,7 +3,7 @@ const jwt = require("jsonwebtoken");
 
 const User = require("../users/users-model");
 
-const restricted = (req, res, next) => {
+const restricted = async (req, res, next) => {
   /*
     If the user does not provide a token in the Authorization header:
     status 401
@@ -19,17 +19,17 @@ const restricted = (req, res, next) => {
 
     Put the decoded token in the req object, to make life easier for middlewares downstream!
   */
-  const token = req.headers.authorization;
-  if (!token) {
-    return next({ status: 401, message: "you serious? No token??" });
-  }
-  jwt.verify(token, JWT_SECRET, (err, decodedToken) => {
-    if (err) {
-      return next({ status: 401, message: `your token sucks: ${err.message}` });
-    }
-    req.decodedJwt = decodedToken;
-    next();
-  });
+  // const token = req.headers.authorization;
+  // if (!token) {
+  //   return next({ status: 401, message: "you serious? No token??" });
+  // }
+  // jwt.verify(token, JWT_SECRET, (err, decodedToken) => {
+  //   if (err) {
+  //     return next({ status: 401, message: `your token sucks: ${err.message}` });
+  //   }
+  //   req.decodedJwt = decodedToken;
+  //   next();
+  // });
 };
 
 const only = (role_name) => (req, res, next) => {
@@ -56,14 +56,20 @@ const checkUsernameExists = async (req, res, next) => {
     }
   */
 
-  console.log("chk username middleware");
-
-  const { username } = req.body;
-  const user = await User.findBy({ username });
-  if (user.length) {
-    next();
-  } else console.log("sad chk username middleware");
-  next({ status: 401, message: "invalid credentials" });
+  try {
+    const [user] = await User.findBy({ username: req.body.username });
+    if (!user) {
+      next({
+        status: 422,
+        message: "invalid credentials",
+      });
+    } else {
+      req.user = user;
+      next();
+    }
+  } catch (err) {
+    next(err);
+  }
 };
 
 const validateRoleName = (req, res, next) => {
